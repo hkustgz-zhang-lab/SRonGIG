@@ -1,3 +1,6 @@
+include(FetchContent)
+include(CMakePrintHelpers)
+
 add_library(experiments INTERFACE)
 target_include_directories(experiments INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(experiments INTERFACE fmt json)
@@ -22,10 +25,20 @@ endif()
 # path to the experiments cpp files and EPFL benchmarks
 target_compile_definitions(experiments INTERFACE "EXPERIMENTS_PATH=\"${CMAKE_CURRENT_SOURCE_DIR}/\"")
 
-file(GLOB FILENAMES *.cpp)
+# get the mtKaHyPar lib as a library
+FetchContent_Declare(
+  MtKaHyPar EXCLUDE_FROM_ALL
+  GIT_REPOSITORY https://github.com/kahypar/mt-kahypar
+  GIT_TAG        v1.5.2
+)
+FetchContent_MakeAvailable(MtKaHyPar)
 
-foreach(filename ${FILENAMES})
+file(GLOB FILENAMES *.cpp)
+set(EXPFILE ${FILENAMES})
+
+# TODO: @Jingren Filter out the target file
+foreach(filename ${EXPFILE})
   get_filename_component(basename ${filename} NAME_WE)
   add_executable(${basename} ${filename})
-  target_link_libraries(${basename} PUBLIC experiments mockturtle)
+  target_link_libraries(${basename} PUBLIC experiments mockturtle MtKaHyPar::mtkahypar)
 endforeach()
