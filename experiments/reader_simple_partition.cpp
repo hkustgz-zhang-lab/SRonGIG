@@ -144,7 +144,7 @@ int main()
     std::cout << "Km1               = " << km1 << std::endl;
     std::cout << "Weight of Block 0 = " << block_weights[0] << std::endl;
     std::cout << "Weight of Block 1 = " << block_weights[1] << std::endl;
-    std::cout << "Weight of Block 2 = " << block_weights[1] << std::endl;
+    std::cout << "Weight of Block 2 = " << block_weights[2] << std::endl;
     std::cout << std::endl;
 
     // You cannot give a directory that doesn't exist here, std::ofstream doesn't create new directory by default
