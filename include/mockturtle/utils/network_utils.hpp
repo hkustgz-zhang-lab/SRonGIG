@@ -46,7 +46,7 @@ namespace detail
 template<typename NtkSrc, typename NtkDest>
 auto clone_node_topologically( NtkSrc const& ntk, NtkDest& subntk, unordered_node_map<typename NtkDest::signal, NtkSrc>& node_to_signal, typename NtkSrc::node n )
 {
-  if ( node_to_signal.has( n ) )
+  if ( node_to_signal.has( n ) || ntk.is_pi( n ) )
   {
     return node_to_signal[n];
   }
