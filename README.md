@@ -1,45 +1,19 @@
-[![Actions Status](https://github.com/lsils/mockturtle/workflows/Linux%20CI/badge.svg)](https://github.com/lsils/mockturtle/actions)
-[![Actions Status](https://github.com/lsils/mockturtle/workflows/MacOS%20CI/badge.svg)](https://github.com/lsils/mockturtle/actions)
-[![Actions Status](https://github.com/lsils/mockturtle/workflows/Windows%20CI/badge.svg)](https://github.com/lsils/mockturtle/actions)
-[![Coverage Status](https://codecov.io/gh/lsils/mockturtle/branch/master/graph/badge.svg?token=KSC1MP2VCM)](https://codecov.io/gh/lsils/mockturtle)
-[![Documentation Status](https://readthedocs.org/projects/mockturtle/badge/?version=latest)](http://mockturtle.readthedocs.io/en/latest/?badge=latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+# SRonGIG: Split-and-Reunion on GIG
 
-# mockturtle
+Split-and-Reunion on Graph-Inverter-Graph is an interface we implemented to enable partition process in logic synthesis.
 
-<img src="https://cdn.jsdelivr.net/gh/lsils/mockturtle@master/mockturtle.svg" width="64" height="64" align="left" style="margin-right: 12pt" />
-mockturtle is a C++-17 logic network library.  It provides several logic
-network implementations (such as And-inverter graphs, Majority-inverter graphs,
-and k-LUT networks), and generic algorithms for logic synthesis and logic
-optimization.
+It is based on [mockturtle](https://github.com/lsils/mockturtle) and will finally be merged into a self-maintained version.
 
-[Read the full documentation.](http://mockturtle.readthedocs.io/en/latest/?badge=latest)
+## What & Why & how
+It is a graph based interface that could easily be used with other mockturtle interfaces. We implement it to assist future work which based on graph partitioning. We use SOTA [mt-KaHypa](https://github.com/kahypar/mt-kahypar) as bridge. The efficient data format representing the hypergraph is called [hMetis format](https://course.ece.cmu.edu/~ee760/760docs/hMetisManual.pdf) (it is highly recommended to directly read Figure 5 and related paragraph to get an intuitive idea).
 
-## Example
+## Build
+Please follow the instruction in mockturtle, we are not breaking any mockturtle project structure. We give a showcase in [experiments/reader_simple_partition.cpp](experiments/reader_simple_partition.cpp). So a simple build and test on partition would be:
 
-The following code snippet reads an AIG from an Aiger file, enumerates all cuts
-and prints them for each node.
-
-```c++
-#include <mockturtle/mockturtle.hpp>
-#include <lorina/aiger.hpp>
-
-mockturtle::aig_network aig;
-auto const result = lorina::read_aiger( "file.aig", mockturtle::aiger_reader( aig ) );
-assert( result == lorina::return_code::success );
-
-auto const cuts = cut_enumeration( aig );
-aig.foreach_node( [&]( auto node ) {
-  std::cout << cuts.cuts( aig.node_to_index( node ) ) << "\n";
-} );
+```bash
+mkdir build
+cd build
+cmake -DMOCKTURTLE_EXPERIMENTS=ON -DCMAKE_BUILD_TYPE=Debug -DMOCKTURTLE_TEST=ON ..
+make reader_simple_partition
+./experiments/reader_simple_partition
 ```
-
-## Installation requirements
-
-A modern compiler is required to build *mockturtle*.  We are continuously
-testing with Clang 12.0.1, GCC 9.3.0, and GCC 10.2.0.  More information can be
-found in the [documentation](http://mockturtle.readthedocs.io/en/latest/getting_started.html).
-
-## EPFL logic synthesis libraries
-
-mockturtle is part of the [EPFL logic synthesis](https://lsi.epfl.ch/page-138455-en.html) libraries.  The other libraries and several examples on how to use and integrate the libraries can be found in the [logic synthesis tool showcase](https://github.com/lsils/lstools-showcase).
