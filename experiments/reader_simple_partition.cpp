@@ -224,24 +224,24 @@ int main()
     auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block_io, node_block );
 
     // Now insert all the aigs back to original ntk and check the equivalence
-    // for ( auto& aig_part : vAigs )
-    //{
-    //  // create signals
-    //  std::vector<aig_network::signal> i_sigs;
-    //  for ( auto const& i : std::get<1>( aig_part ) )
-    //  {
-    //    i_sigs.push_back( aig.make_signal( i ) );
-    //  }
-    //  uint32_t counter = 0u;
-    //  // insert back now
-    //  insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
-    //    auto const _old = std::get<2>( aig_part ).at( counter++ );
-    //    if ( _old != _new )
-    //    {
-    //      aig.substitute_node( aig.get_node( _old ), aig.is_complemented( _old ) ? !_new : _new );
-    //    }
-    //  } );
-    //}
+    for ( auto& aig_part : vAigs )
+    {
+      // create signals
+      std::vector<aig_network::signal> i_sigs;
+      for ( auto const& i : std::get<1>( aig_part ) )
+      {
+        i_sigs.push_back( aig.make_signal( i ) );
+      }
+      uint32_t counter = 0u;
+      // insert back now
+      insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
+        auto const _old = std::get<2>( aig_part ).at( counter++ );
+        if ( _old != _new )
+        {
+          aig.substitute_node( aig.get_node( _old ), aig.is_complemented( _old ) ? !_new : _new );
+        }
+      } );
+    }
 
     const auto cec1 = benchmark == "hyp" ? true : abc_cec( aig, benchmark );
     assert( cec1 == true );
