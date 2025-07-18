@@ -10,6 +10,8 @@
 #include <mockturtle/algorithms/lut_mapper.hpp>
 #include <mockturtle/io/aiger_reader.hpp>
 #include <mockturtle/networks/aig.hpp>
+#include <mockturtle/networks/klut.hpp>
+#include <mockturtle/utils/debugging_utils.hpp>
 #include <mockturtle/views/depth_view.hpp>
 #include <mockturtle/views/partition_view.hpp>
 #include <mtkahypar.h>
@@ -94,6 +96,7 @@ int main()
     {
       continue;
     }
+    auto ori_gate_num = aig.num_gates();
 
     partition_view_params ps;
     ps.file_name = fmt::format( "{}/tmp_ctrl.hmetis", pHyOutS );
@@ -221,6 +224,9 @@ int main()
     std::cout << "Size of all the boundary nodes is " << node_block_io.size() << std::endl;
     node_block = convertToMap( partition, mt_kahypar_num_hypernodes( hypergraph ) );
 
+    std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
+    std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
+
     auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block_io, node_block );
 
     // Now insert all the aigs back to original ntk and check the equivalence
@@ -243,6 +249,10 @@ int main()
       } );
     }
 
+    auto final_gate_num = aig.num_gates();
+    std::cout << "Original gate number " << ori_gate_num << " Final gate number " << final_gate_num << std::endl;
+
+    // equivalence check
     const auto cec1 = benchmark == "hyp" ? true : abc_cec( aig, benchmark );
     assert( cec1 == true );
     std::cout << "*****EQ CHEKCED*****" << std::endl;
