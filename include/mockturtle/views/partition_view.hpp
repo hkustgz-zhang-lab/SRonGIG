@@ -53,10 +53,10 @@ public:
   {
   }
 
-  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>>> construct_from_partition( int nPart, std::map<edge_id, std::vector<node_id_k>> vBoundaries, std::map<node_id_k, block_id> const& node_block_io, std::map<node_id_k, block_id>& node_block )
+  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<edge_id, std::vector<node_id_k>> vBoundaries, std::map<node_id_k, block_id> const& node_block_io, std::map<node_id_k, block_id>& node_block )
   {
     // create nPart aig_network in parallel
-    std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>>> vAigs_win( nPart );
+    std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> vAigs_win( nPart );
     // construct aig from scratch
     std::cout << "Size of the io map is " << node_block_io.size() << std::endl;
     /*
@@ -67,8 +67,19 @@ public:
     std::vector<std::vector<node>> node_id_split( 3 * nPart );
 
     /*
-    For all pis/pos, these can only be split, even after patition, they are still pis/pos ,don't need to check the boundaries, just might belongs to different block.
+    For all pis/pos, these can only be split, even after patition, they are still pis/pos, don't need to check the boundaries, just might belongs to different block.
     */
+    // Deal with constant0 first
+    /*
+    Eg Inputs 1,2,3 ANDs 4,5,6, then _ntk.num_gates() + _ntk.num_pis() + 1 = 7
+    If _ntk.num_gates() + _ntk.num_pis() + 1 means no zero in hMetis
+    Eg Inputs 1,2,3 ANDs 4,5,6, Zero 7, then _ntk.num_gates() + _ntk.num_pis() + 2 = 8
+    _ntk.num_gates() + _ntk.num_pis() + 2 means zero is counted.
+    */
+    assert( node_block.size() == _ntk.num_gates() + _ntk.num_pis() + 1 );
+    // auto block_id_const = node_block[_ntk.num_gates() + _ntk.num_pis() + 1];
+    // node_id_split[block_id_const * 3].push_back( _ntk.get_node(_ntk.get_constant(false)) );
+
     _ntk.foreach_pi( [&]( auto const& n_pi ) {
       auto pi_index = _ntk.node_to_index( n_pi );
       auto it = node_block.find( pi_index );
@@ -88,17 +99,23 @@ public:
       assert( _ntk.is_and( _ntk.get_node( n_po ) ) || _ntk.is_pi( _ntk.get_node( n_po ) ) || _ntk.is_constant( _ntk.get_node( n_po ) ) );
       if ( po_index == 0 )
       {
-        po_index = _ntk.num_gates() + _ntk.num_pis();
-      }
-      auto it = node_block.find( po_index );
-      if ( it == node_block.end() )
-      {
-        std::cout << "Something wrong. There's no PO index " << po_index << std::endl;
+        std::cout << "[Warn] PO has const 0." << std::endl;
+        /*
+        @TODO Jingren Wang
+        */
       }
       else
       {
-        auto block_id = it->second;
-        node_id_split[block_id * 3 + 1].push_back( _ntk.get_node( n_po ) );
+        auto it = node_block.find( po_index );
+        if ( it == node_block.end() )
+        {
+          std::cout << "Something wrong. There's no PO index " << po_index << std::endl;
+        }
+        else
+        {
+          auto block_id = it->second;
+          node_id_split[block_id * 3 + 1].push_back( _ntk.get_node( n_po ) );
+        }
       }
     } );
 
@@ -111,21 +128,11 @@ public:
     {
       assert( edg.second.size() != 0 );
       auto src_index = edg.second[0];
-      if ( src_index == ( _ntk.num_gates() + _ntk.num_pis() ) )
-      {
-        src_index = 0;
-      }
       auto node_source = _ntk.index_to_node( src_index );
       auto index = 1;
       while ( index < edg.second.size() )
       {
         auto target_to_compare = edg.second[index];
-        if ( target_to_compare == _ntk.num_gates() + _ntk.num_pis() )
-        {
-          assert( target_to_compare == _ntk.num_gates() + _ntk.num_pis() );
-          std::cout << "Encounter with const0 id " << target_to_compare << std::endl;
-          target_to_compare = 0;
-        }
         if ( ntk_dep.level( _ntk.index_to_node( target_to_compare ) ) < ntk_dep.level( node_source ) )
         {
           node_source = _ntk.index_to_node( target_to_compare );
@@ -134,14 +141,10 @@ public:
       }
       // Add SOURCE to the fanout of the block itself belongs to
       auto b_s = _ntk.node_to_index( node_source );
-      if ( b_s == 0 )
-      {
-        b_s = _ntk.num_gates() + _ntk.num_pis();
-      }
       auto& block_id_s = node_block[b_s];
       auto& ac_pos = node_id_split[block_id_s * 3 + 1];
       // only single output is needed(?)
-      if ( !check_node_exist( node_id_split[block_id_s * 3 + 1], node_source ) )
+      if ( !check_node_exist( node_id_split[block_id_s * 3 + 1], node_source ) && !_ntk.is_constant( node_source ) && !_ntk.is_pi( node_source ) )
       {
         ac_pos.push_back( node_source );
       }
@@ -193,6 +196,7 @@ public:
       // Do not contain PIs, as suggested by clone_subnetwork api
       if ( !check_node_exist( cis_id, n_and ) )
       {
+        assert( _ntk.node_to_index( n_and ) <= _ntk.num_pis() + _ntk.num_gates() );
         node_id_split[block_id_and * 3 + 2].push_back( n_and );
       }
     } );
@@ -220,6 +224,7 @@ public:
       std::get<0>( vAigs_win[i] ) = win;
       std::get<1>( vAigs_win[i] ) = inputs;
       std::get<2>( vAigs_win[i] ) = outputs;
+      std::get<3>( vAigs_win[i] ) = gates;
     }
     assert( count_all_gate == ori_num_gate );
     return vAigs_win;
@@ -276,7 +281,7 @@ private:
     } );
     std::vector<node> copy = _sinkHyp[0];
     auto last_index = _sinkHyp.size();
-    _sinkHyp.erase( 0 );
+    _sinkHyp[0] = {};
     _sinkHyp[last_index] = copy;
   }
 
@@ -296,7 +301,17 @@ private:
     // skip the weight simulation for now
     std::ofstream os( ps.file_name.c_str(), std::ofstream::out );
     hypNumCount( _sinkHyp, _hypNum );
-    os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() << "\n";
+    bool constExist = false;
+    if ( _sinkHyp[_sinkHyp.size() - 1].size() == 0 )
+    {
+      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() << "\n";
+    }
+    else
+    {
+      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() + 1 << "\n";
+      constExist = true;
+    }
+
     for ( auto item = _sinkHyp.begin(); item != _sinkHyp.end(); item++ )
     {
 
@@ -321,6 +336,10 @@ private:
       }
     }
     os << "%% Mockturtle finished writing the hMetis file." << std::endl;
+    if ( constExist )
+    {
+      os << "%% Const exists as the largest index." << std::endl;
+    }
     os.close();
   }
   int _hypNum;
