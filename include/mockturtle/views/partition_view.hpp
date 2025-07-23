@@ -13,6 +13,8 @@
 #include <mockturtle/networks/aig.hpp>
 #include <mockturtle/traits.hpp>
 #include <mockturtle/utils/network_utils.hpp>
+#include <mockturtle/utils/window_utils.hpp>
+#include <mockturtle/views/color_view.hpp>
 #include <mockturtle/views/depth_view.hpp>
 #include <ostream>
 #include <string>
@@ -43,7 +45,7 @@ public:
   using block_id = int;
   using edge_id = unsigned long int;
 
-  explicit partition_view( aig_network const& ntk, partition_view_params const& ps = {} ) : _hypNum( 0 ), _ps( ps ), _ntk( ntk )
+  explicit partition_view( aig_network const& ntk, partition_view_params const& ps = {} ) : _hypNum( 0 ), _ps( ps ), _ntk( ntk ), refs( ntk.size() )
   {
     collect_hypgraph( ntk );
     write_hypgraph( ntk, ps );
@@ -207,23 +209,20 @@ public:
     auto count_all_gate = 0;
     for ( auto i = 0; i < nPart; i++ )
     {
-      std::cout << "================\nBlock " << i << std::endl;
       aig_network win;
-      std::vector<node> inputs = node_id_split[i * 3];
-      assert( inputs.size() > 0 );
-      std::cout << "Size of CI: " << inputs.size() << std::endl;
-      std::vector<node> outputs_o = node_id_split[i * 3 + 1];
-      assert( outputs_o.size() > 0 );
-      std::vector<signal> outputs;
-      construct_out_sig( outputs_o, outputs );
-      std::cout << "Size of CO: " << outputs.size() << std::endl;
+      color_view c_ntk{ _ntk };
       std::vector<node> gates = node_id_split[i * 3 + 2];
-      std::cout << "Size of gates: " << gates.size() << std::endl;
+      std::vector<node> inputs_w = collect_inputs( c_ntk, gates );
+      assert( inputs_w.size() > 0 );
+      std::stable_sort( std::begin( inputs_w ), std::end( inputs_w ) );
+      std::stable_sort( std::begin( gates ), std::end( gates ) );
+      std::vector<signal> outputs_w = collect_outputs( c_ntk, inputs_w, gates, refs );
+      assert( outputs_w.size() > 0 );
       count_all_gate += gates.size();
-      clone_subnetwork( _ntk, inputs, outputs, gates, win );
+      clone_subnetwork( _ntk, inputs_w, outputs_w, gates, win );
       std::get<0>( vAigs_win[i] ) = win;
-      std::get<1>( vAigs_win[i] ) = inputs;
-      std::get<2>( vAigs_win[i] ) = outputs;
+      std::get<1>( vAigs_win[i] ) = inputs_w;
+      std::get<2>( vAigs_win[i] ) = outputs_w;
       std::get<3>( vAigs_win[i] ) = gates;
     }
     assert( count_all_gate == ori_num_gate );
@@ -346,6 +345,7 @@ private:
   partition_view_params _ps;
   std::map<node, std::vector<node>> _sinkHyp;
   aig_network _ntk;
+  std::vector<uint32_t> refs;
 };
 
 } // namespace mockturtle

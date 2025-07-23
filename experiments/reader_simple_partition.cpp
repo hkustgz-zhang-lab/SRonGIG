@@ -12,6 +12,7 @@
 #include <mockturtle/networks/aig.hpp>
 #include <mockturtle/networks/klut.hpp>
 #include <mockturtle/utils/debugging_utils.hpp>
+#include <mockturtle/views/color_view.hpp>
 #include <mockturtle/views/depth_view.hpp>
 #include <mockturtle/views/partition_view.hpp>
 #include <mtkahypar.h>
@@ -232,6 +233,15 @@ int main()
     // Now insert all the aigs back to original ntk and check the equivalence
     for ( auto& aig_part : vAigs )
     {
+
+      klut_network klut_a = lut_map( std::get<0>( aig_part ) );
+      mig_network mig_IR;
+      convert_klut_to_graph<mig_network>( mig_IR, klut_a );
+      klut_network klut_m = lut_map( mig_IR );
+      aig_network aig_p_t_b;
+      convert_klut_to_graph<aig_network>( aig_p_t_b, klut_m );
+      std::get<0>( aig_part ) = aig_p_t_b;
+
       // create signals
       std::vector<aig_network::signal> i_sigs;
       for ( auto const& i : std::get<1>( aig_part ) )
@@ -240,14 +250,29 @@ int main()
       }
       uint32_t counter = 0u;
       // insert back now
+      color_view c_aig{ aig };
+      assert( count_reachable_dead_nodes( c_aig ) == 0u );
       insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
+        assert( !c_aig.is_dead( c_aig.get_node( _new ) ) );
         auto const _old = std::get<2>( aig_part ).at( counter++ );
+        if ( _old == _new )
+        {
+          return true;
+        }
+
         if ( _old != _new )
         {
           aig.substitute_node( aig.get_node( _old ), aig.is_complemented( _old ) ? !_new : _new );
         }
+        return true;
       } );
     }
+
+    auto aig_clear = cleanup_dangling( aig );
+    color_view f_c_aig{ aig_clear };
+    assert( count_reachable_dead_nodes( f_c_aig ) == 0u );
+    assert( network_is_acyclic( f_c_aig ) );
+    aig = aig_clear;
 
     auto final_gate_num = aig.num_gates();
     std::cout << "Original gate number " << ori_gate_num << " Final gate number " << final_gate_num << std::endl;
