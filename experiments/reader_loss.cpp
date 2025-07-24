@@ -18,7 +18,7 @@ int main()
   using namespace mockturtle;
   experiment<std::string, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, bool> exp( "readerLoss", "benchmark", "nodes num before", "nodes num after", "num back to aig", "depth before", "depth after", "level back to aig", "cec res" );
 
-  for ( auto const& benchmark : epfl_benchmarks() )
+  for ( auto const& benchmark : epfl_benchmarks( ~experiments::hyp ) )
   {
     fmt::print( "[i] processing {}\n", benchmark );
     mig_network mig;
