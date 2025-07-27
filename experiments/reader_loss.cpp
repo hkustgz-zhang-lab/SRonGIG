@@ -16,7 +16,7 @@ int main()
 
   using namespace experiments;
   using namespace mockturtle;
-  experiment<std::string, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, bool> exp( "readerLoss", "benchmark", "nodes num before", "nodes num after", "num back to aig", "depth before", "depth after", "level back to aig", "cec res" );
+  experiment<std::string, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, bool> exp( "reader_loss", "benchmark", "nodes num before", "nodes num after", "num back to aig", "depth before", "depth after", "level back to aig", "cec res" );
 
   for ( auto const& benchmark : epfl_benchmarks( ~experiments::hyp ) )
   {
