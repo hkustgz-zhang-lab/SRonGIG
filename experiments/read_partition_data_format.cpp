@@ -9,6 +9,7 @@
 #include <mockturtle/algorithms/klut_to_graph.hpp>
 #include <mockturtle/algorithms/lut_mapper.hpp>
 #include <mockturtle/io/aiger_reader.hpp>
+#include <mockturtle/io/write_aiger.hpp>
 #include <mockturtle/networks/aig.hpp>
 #include <mockturtle/networks/klut.hpp>
 #include <mockturtle/utils/debugging_utils.hpp>
@@ -69,7 +70,7 @@ int main()
   */
   using namespace experiments;
   experiment<std::string, uint32_t, uint32_t, uint32_t, uint32_t, bool> exp( "reader_partition_data", "benchmark", "nodes num before", "num back to aig", "depth before", "level back to aig", "cec res" );
-  
+
   std::cout << EXPERIMENTS_PATH << std::endl;
   std::filesystem::path pHyOut = fmt::format( "{}HypOut", EXPERIMENTS_PATH );
   const std::string pHyOutS = pHyOut;
@@ -101,7 +102,7 @@ int main()
       continue;
     }
     auto ori_gate_num = aig.num_gates();
-    depth_view d_aig{aig};
+    depth_view d_aig{ aig };
     auto aig_depth_before = d_aig.depth();
 
     partition_view_params ps;
@@ -236,12 +237,15 @@ int main()
     auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block_io, node_block );
 
     // Now insert all the aigs back to original ntk and check the equivalence
+    int iCount = 0;
     for ( auto& aig_part : vAigs )
     {
-
-      klut_network klut_a = lut_map( std::get<0>( aig_part ) );
+      write_aiger( std::get<0>( aig_part ), fmt::format( "{}/{}_part_{}", pHyOutS, benchmark, iCount ) );
       mig_network mig_IR;
-      convert_klut_to_graph<mig_network>( mig_IR, klut_a );
+      if ( lorina::read_aiger( fmt::format( "{}/{}_part_{}", pHyOutS, benchmark, iCount ), aiger_reader( mig_IR ) ) != lorina::return_code::success )
+      {
+        continue;
+      }
       klut_network klut_m = lut_map( mig_IR );
       aig_network aig_p_t_b;
       convert_klut_to_graph<aig_network>( aig_p_t_b, klut_m );
@@ -271,6 +275,17 @@ int main()
         }
         return true;
       } );
+
+      if ( remove( fmt::format( "{}/{}_part_{}", pHyOutS, benchmark, iCount ).c_str() ) == 0 )
+      {
+        std::cout << "Successfully deleted the tmp file." << std::endl;
+      }
+      else
+      {
+        std::cout << "Failed to delete the tmp file." << std::endl;
+      }
+
+      iCount++;
     }
 
     auto aig_clear = cleanup_dangling( aig );
@@ -280,7 +295,7 @@ int main()
     aig = aig_clear;
 
     auto final_gate_num = aig.num_gates();
-    depth_view d_aig_final{aig};
+    depth_view d_aig_final{ aig };
     auto aig_back_depth = d_aig_final.depth();
     std::cout << "Original gate number " << ori_gate_num << " Final gate number " << final_gate_num << std::endl;
 
@@ -315,14 +330,14 @@ int main()
     // alternative without file write out, using:
     // mt_kahypar_partitioned_hypergraph_t partitioned_hg_sep = mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 3, partition.get(), &error);
 
-    // if ( remove( fmt::format( "{}/tmp.hmetis", pHyOutS ).c_str() ) == 0 )
-    //{
-    //   std::cout << "Successfully deleted the tmp file." << std::endl;
-    // }
-    // else
-    //{
-    //   std::cout << "Failed to delete the tmp file." << std::endl;
-    // }
+    if ( remove( fmt::format( "{}/tmp.hmetis", pHyOutS ).c_str() ) == 0 )
+    {
+      std::cout << "Successfully deleted the tmp file." << std::endl;
+    }
+    else
+    {
+      std::cout << "Failed to delete the tmp file." << std::endl;
+    }
 
     mt_kahypar_free_context( context );
     mt_kahypar_free_hypergraph( hypergraph );
