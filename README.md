@@ -17,3 +17,9 @@ cmake -DMOCKTURTLE_EXPERIMENTS=ON -DCMAKE_BUILD_TYPE=Debug -DMOCKTURTLE_TEST=ON 
 make reader_simple_partition
 ./experiments/reader_simple_partition
 ```
+
+## Automatic Latex Data Collection
+The experimental framework leverages Mockturtle's robust JSON generation capabilities for data output. We have implemented a Python-based processing pipeline that automatically transforms this collected data into LaTeX-compatible formats (see jupyternotebook [experiments/data_collect/DataCollectionToLatex.ipynb](experiments/data_collect/DataCollectionToLatex.ipynb) for implementation details).
+
+> [!NOTE]
+> This is a simple version of data transformation, for detailed interfaces, check [pandas.DataFrame.to_latex](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_latex.html).
