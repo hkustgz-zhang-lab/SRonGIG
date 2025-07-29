@@ -33,6 +33,15 @@ struct partition_view_params
 
   /*! \brief Write out to the specific file name */
   std::string file_name{ "tmp.hmetis" };
+
+  /*! \brief Number of partition block. */
+  int num_blocks{ 2 };
+
+  /*! \brief Seed of the function. */
+  int seed{ 42 };
+
+  /*! \brief Epsilon */
+  double epsilon{ 0.03 };
 };
 
 class partition_view

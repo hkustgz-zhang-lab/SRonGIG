@@ -1,4 +1,5 @@
 #include "experiments.hpp"
+#include "mtkahypartypes.h"
 #include <_stdio.h>
 #include <cassert>
 #include <cstddef>
@@ -129,12 +130,11 @@ int main()
 
     // Setup partitioning context
     mt_kahypar_context_t* context = mt_kahypar_context_from_preset( DETERMINISTIC );
-    // In the following, we partition a hypergraph into two blocks
-    // with an allowed imbalance of 3% and optimize the connective metric (KM1)
+    // with an allowed imbalance of 3% and optimize the connective metric
     mt_kahypar_set_partitioning_parameters( context,
-                                            2 /* number of blocks */, 0.03 /* imbalance parameter */,
-                                            KM1 /* objective function */ );
-    mt_kahypar_set_seed( 42 /* seed */ );
+                                            ps.num_blocks /* number of blocks */, ps.epsilon /* imbalance parameter */,
+                                            SOED /* objective function */ );
+    mt_kahypar_set_seed( ps.seed /* seed */ );
     // Enable logging
     mt_kahypar_status_t status =
         mt_kahypar_set_context_parameter( context, VERBOSE, "0", &error );
@@ -234,7 +234,7 @@ int main()
     std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
     std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
 
-    auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block_io, node_block );
+    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, vBoundaries, node_block_io, node_block );
 
     // Now insert all the aigs back to original ntk and check the equivalence
     int iCount = 0;
@@ -260,7 +260,8 @@ int main()
       uint32_t counter = 0u;
       // insert back now
       color_view c_aig{ aig };
-      assert( count_reachable_dead_nodes( c_aig ) == 0u );
+      // No need to check for redandancy here, since if move redandancy here will cause id change, only need to clear it at the end.
+      //  assert( count_reachable_dead_nodes( c_aig ) == 0u );
       insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
         assert( !c_aig.is_dead( c_aig.get_node( _new ) ) );
         auto const _old = std::get<2>( aig_part ).at( counter++ );
@@ -305,20 +306,23 @@ int main()
     std::cout << "*****EQ CHEKCED*****" << std::endl;
 
     // Extract Block Weights
-    auto block_weights = std::make_unique<mt_kahypar_hypernode_weight_t[]>( 2 );
+    auto block_weights = std::make_unique<mt_kahypar_hypernode_weight_t[]>( ps.num_blocks );
     mt_kahypar_get_block_weights( partitioned_hg, block_weights.get() );
 
     // Compute Metrics
     const double imbalance = mt_kahypar_imbalance( partitioned_hg, context );
-    const int km1 = mt_kahypar_km1( partitioned_hg );
+    // const int km1 = mt_kahypar_km1( partitioned_hg );
+    const int soed_val = mt_kahypar_soed( partitioned_hg );
+    // const int cut_val = mt_kahypar_cut( partitioned_hg );
 
     // Output Results
     std::cout << "====================\nPartitioning Results:" << std::endl;
     std::cout << "Imbalance         = " << imbalance << std::endl;
-    std::cout << "Km1               = " << km1 << std::endl;
-    std::cout << "Weight of Block 0 = " << block_weights[0] << std::endl;
-    std::cout << "Weight of Block 1 = " << block_weights[1] << std::endl;
-    // std::cout << "Weight of Block 2 = " << block_weights[2] << std::endl;
+    std::cout << "SOEDVal           = " << soed_val << std::endl;
+    for ( auto i_b = 0; i_b < ps.num_blocks; i_b++ )
+    {
+      std::cout << fmt::format( "Weight of Block {} = {}", i_b, block_weights[i_b] ) << std::endl;
+    }
     std::cout << std::endl;
 
     // You cannot give a directory that doesn't exist here, std::ofstream doesn't create new directory by default
