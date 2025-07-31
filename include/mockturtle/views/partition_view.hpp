@@ -6,6 +6,7 @@
 */
 
 #include "fanout_view.hpp"
+#include "mtkahypartypes.h"
 #include <cassert>
 #include <cstddef>
 #include <fstream>
@@ -35,10 +36,10 @@ struct partition_view_params
   std::string file_name{ "tmp.hmetis" };
 
   /*! \brief Number of partition block. */
-  int num_blocks{ 2 };
+  mt_kahypar_partition_id_t num_blocks{ 2 };
 
   /*! \brief Seed of the function. */
-  int seed{ 42 };
+  size_t seed{ 42 };
 
   /*! \brief Epsilon */
   double epsilon{ 0.03 };
@@ -64,7 +65,7 @@ public:
   {
   }
 
-  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<edge_id, std::vector<node_id_k>> vBoundaries, std::map<node_id_k, block_id> const& node_block_io, std::map<node_id_k, block_id>& node_block )
+  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> const& node_block_io, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t>& node_block )
   {
     // create nPart aig_network in parallel
     std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> vAigs_win( nPart );

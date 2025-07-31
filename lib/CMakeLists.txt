@@ -30,6 +30,17 @@ if (NOT TARGET json)
   target_include_directories(json SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/json)
 endif()
 
+include(FetchContent)
+# get the mtKaHyPar lib as a library
+add_library(MtKaHypar INTERFACE)
+FetchContent_Declare(
+MtKaHyPar EXCLUDE_FROM_ALL
+GIT_REPOSITORY https://github.com/kahypar/mt-kahypar
+GIT_TAG        v1.5.2
+SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/MtKaHyPar"
+)
+FetchContent_MakeAvailable(MtKaHyPar)
+
 if (NOT TARGET percy)
   add_library(percy INTERFACE) # >v0.1.2
   target_include_directories(percy SYSTEM INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/percy)
