@@ -203,32 +203,14 @@ int main()
     std::cout << std::endl;
 
     // save the result to std::map<nodeId, blockid>
-    std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> node_block_io;
     std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> node_block;
-    for ( auto& item : vBoundaries )
-    {
-      mt_kahypar_hypernode_id_t hypId = 0;
-      while ( hypId < item.second.size() )
-      {
-        if ( node_block_io.count( item.second[hypId] ) > 0 )
-        {
-          hypId++;
-          continue;
-        }
-        else
-        {
-          node_block_io[item.second[hypId] - 1] = mt_kahypar_block_id( partitioned_hg, item.second[hypId] - 1 );
-          hypId++;
-        }
-      }
-    }
-    std::cout << "Size of all the boundary nodes is " << node_block_io.size() << std::endl;
+
     node_block = convertToMap( partition, mt_kahypar_num_hypernodes( hypergraph ) );
 
     std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
     std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
 
-    auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block_io, node_block );
+    auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block );
 
     // Now insert all the aigs back to original ntk and check the equivalence
     for ( auto& aig_part : vAigs )

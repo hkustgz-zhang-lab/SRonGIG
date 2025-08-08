@@ -65,12 +65,11 @@ public:
   {
   }
 
-  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> const& node_block_io, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t>& node_block )
+  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t>& node_block )
   {
     // create nPart aig_network in parallel
     std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> vAigs_win( nPart );
     // construct aig from scratch
-    std::cout << "Size of the io map is " << node_block_io.size() << std::endl;
     /*
     block0: vCis; vCos; vNodes;
     block1: vCis; vCos; vNodes;
