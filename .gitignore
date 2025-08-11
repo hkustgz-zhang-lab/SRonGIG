@@ -10,3 +10,5 @@ docs/_build
 docs/doxyxml
 
 experiments/HypOut/
+
+*.hmetis

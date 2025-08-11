@@ -1,6 +1,6 @@
 /*!
   \file partition_view.hpp
-  \brief Implements partition interface for AIG network
+  \brief Implement partition interface for AIG network
 
   \author Jingren Wang
 */
@@ -57,6 +57,7 @@ public:
 
   explicit partition_view( aig_network const& ntk, partition_view_params const& ps = {} ) : _hypNum( 0 ), _ps( ps ), _ntk( ntk ), refs( ntk.size() )
   {
+    _sinkHyp.clear();
     collect_hypgraph( ntk );
     write_hypgraph( ntk, ps );
   }
@@ -86,6 +87,8 @@ public:
     If _ntk.num_gates() + _ntk.num_pis() + 1 means no zero in hMetis
     Eg Inputs 1,2,3 ANDs 4,5,6, Zero 7, then _ntk.num_gates() + _ntk.num_pis() + 2 = 8
     _ntk.num_gates() + _ntk.num_pis() + 2 means zero is counted.
+
+    Currently not supporting const zero.
     */
     assert( node_block.size() == _ntk.num_gates() + _ntk.num_pis() + 1 );
     // auto block_id_const = node_block[_ntk.num_gates() + _ntk.num_pis() + 1];
@@ -312,13 +315,18 @@ private:
     bool constExist = false;
     if ( _sinkHyp[_sinkHyp.size() - 1].size() == 0 )
     {
-      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() << "\n";
+      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis();
     }
     else
     {
-      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() + 1 << "\n";
+      os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() + 1;
       constExist = true;
     }
+    if ( ps.si_w_on_hyperedges )
+    {
+      os << " " << 1;
+    }
+    os << "\n";
 
     for ( auto item = _sinkHyp.begin(); item != _sinkHyp.end(); item++ )
     {
@@ -329,6 +337,10 @@ private:
       }
       else
       {
+        if ( ps.si_w_on_hyperedges )
+        {
+          os << item->second.size() << " ";
+        }
         os << ntk.node_to_index( item->first ) << " ";
         for ( auto t = item->second.begin(); t < item->second.end(); t++ )
         {
@@ -346,6 +358,8 @@ private:
     os << "%% Mockturtle finished writing the hMetis file." << std::endl;
     if ( constExist )
     {
+      // This should not be triggered currently without const zero.
+      assert( 0 );
       os << "%% Const exists as the largest index." << std::endl;
     }
     os.close();
