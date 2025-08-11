@@ -7,7 +7,30 @@ It is based on [mockturtle](https://github.com/lsils/mockturtle) and will finall
 ## What & Why & how
 It is a graph based interface that could easily be used with other mockturtle interfaces. We implement it to assist future work which based on graph partitioning. We use SOTA [mt-KaHypa](https://github.com/kahypar/mt-kahypar) as bridge. The efficient data format representing the hypergraph is called [hMetis format](https://course.ece.cmu.edu/~ee760/760docs/hMetisManual.pdf) (it is highly recommended to directly read Figure 5 and related paragraph to get an intuitive idea).
 
-## Build
+## Usage
+### Dump the hMetis file format
+Now you could simply include the partition view to dump the hMetis file format. Eg,
+```cpp
+#include <mockturtle/views/partition_view.hpp>
+aig_network aig;
+...
+partition_view_params ps;
+ps.file_name = fmt::format( "{}/test.hmetis", PARTITION_TEST_PATH );
+partition_view aig_p{ aig, ps };
+```
+It will dump a hMetis file without weight on edge or vertices by default, you could enable the simple model by turn it/them on. Eg,
+```cpp
+#include <mockturtle/views/partition_view.hpp>
+aig_network aig;
+...
+ps.si_w_on_hyperedges = true;
+ps.si_w_on_vertices = true;
+ps.file_name = fmt::format( "{}/test_edge_vertices_weight.hmetis", PARTITION_TEST_PATH );
+partition_view aig_p_e_v_w{ aig, ps };
+```
+Note that the weight should be modified by the target of the problem, this is just a showcase that the hyperedges have the weight of the fanout number of each source node, and vertices have the weight of 1.
+
+## Build Experiment
 Please follow the instruction in mockturtle, we are not breaking any mockturtle project structure. We give a showcase in [experiments/reader_simple_partition.cpp](experiments/reader_simple_partition.cpp). So a simple build and test on partition would be:
 
 ```bash
