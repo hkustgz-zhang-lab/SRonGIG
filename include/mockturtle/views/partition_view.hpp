@@ -6,6 +6,7 @@
 */
 
 #include "fanout_view.hpp"
+#include "mtkahypar.h"
 #include "mtkahypartypes.h"
 #include <cassert>
 #include <cstddef>
@@ -69,8 +70,9 @@ public:
   {
   }
 
-  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t>& node_block )
+  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, const std::unique_ptr<mt_kahypar_partition_id_t[]>& partition, const mt_kahypar_hypergraph_t& hypergraph )
   {
+    auto node_block = convertToMap( partition, mt_kahypar_num_hypernodes( hypergraph ) );
     // create nPart aig_network in parallel
     std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> vAigs_win( nPart );
     // construct aig from scratch
@@ -245,21 +247,20 @@ public:
   }
 
 private:
-  void construct_out_sig( std::vector<node> const& outputs_o, std::vector<signal>& outputs )
+  std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> convertToMap(
+      const std::unique_ptr<mt_kahypar_partition_id_t[]>& array,
+      size_t size )
   {
-
-    for ( auto& outs_o : outputs_o )
+    std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> result;
+    result[0] = -1;
+    for ( size_t i = 0; i < size; ++i )
     {
-      _ntk.foreach_node( [&]( auto const& n ) {
-        _ntk.foreach_fanin( n, [&]( auto const& f ) {
-          if ( _ntk.get_node( f ) == outs_o )
-          {
-            outputs.push_back( _ntk.make_signal( outs_o ) );
-          }
-        } );
-      } );
+      result[i + 1] = array[i];
     }
+    assert( result.size() == size + 1 );
+    return result;
   }
+
   bool check_node_exist( std::vector<node> const& nodes, node const& p )
   {
     for ( auto& n : nodes )

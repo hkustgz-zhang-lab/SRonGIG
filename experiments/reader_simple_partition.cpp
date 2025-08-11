@@ -210,7 +210,7 @@ int main()
     std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
     std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
 
-    auto vAigs = aig_p.construct_from_partition( 2, vBoundaries, node_block );
+    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, vBoundaries, partition, hypergraph );
 
     // Now insert all the aigs back to original ntk and check the equivalence
     for ( auto& aig_part : vAigs )

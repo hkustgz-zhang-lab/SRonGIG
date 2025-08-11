@@ -208,15 +208,10 @@ int main()
     }
     std::cout << std::endl;
 
-    // save the result to std::map<nodeId, blockid>
-    std::map<mt_kahypar_hypernode_id_t, mt_kahypar_partition_id_t> node_block;
-
-    node_block = convertToMap( partition, mt_kahypar_num_hypernodes( hypergraph ) );
-
     std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
     std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
 
-    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, vBoundaries, node_block );
+    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, vBoundaries, partition, hypergraph );
 
     // Now insert all the aigs back to original ntk and check the equivalence
     int iCount = 0;
