@@ -32,6 +32,9 @@ struct partition_view_params
   /*! \brief Simulate weight on edges. */
   bool si_w_on_hyperedges{ false };
 
+  /*! \brief Simulate weight on vertices. */
+  bool si_w_on_vertices{ false };
+
   /*! \brief Write out to the specific file name */
   std::string file_name{ "tmp.hmetis" };
 
@@ -322,9 +325,18 @@ private:
       os << _hypNum << " " << ntk.num_gates() + ntk.num_pis() + 1;
       constExist = true;
     }
-    if ( ps.si_w_on_hyperedges )
+
+    if ( ps.si_w_on_hyperedges && ps.si_w_on_vertices )
+    {
+      os << " " << 11;
+    }
+    else if ( ps.si_w_on_hyperedges )
     {
       os << " " << 1;
+    }
+    else if ( ps.si_w_on_vertices )
+    {
+      os << " " << 10;
     }
     os << "\n";
 
@@ -339,6 +351,7 @@ private:
       {
         if ( ps.si_w_on_hyperedges )
         {
+          // This could be customized, currently use the fanout number as the weight
           os << item->second.size() << " ";
         }
         os << ntk.node_to_index( item->first ) << " ";
@@ -353,6 +366,18 @@ private:
             os << ntk.node_to_index( *t ) << " ";
           }
         }
+      }
+    }
+    // simulate weights of vertices to 1, which could be modified
+    if ( ps.si_w_on_vertices )
+    {
+      for ( auto item = _sinkHyp.begin(); item != _sinkHyp.end(); item++ )
+      {
+        if ( item->second.size() == 0 )
+        {
+          continue;
+        }
+        os << 1 << "\n";
       }
     }
     os << "%% Mockturtle finished writing the hMetis file." << std::endl;

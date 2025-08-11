@@ -31,4 +31,14 @@ TEST_CASE( "create and dump hypergraph from an AIG", "[partition]" )
   ps.si_w_on_hyperedges = true;
   ps.file_name = fmt::format( "{}/test_edge_weight.hmetis", PARTITION_TEST_PATH );
   partition_view aig_p_e_w{ aig, ps };
+
+  ps.si_w_on_hyperedges = false;
+  ps.si_w_on_vertices = true;
+  ps.file_name = fmt::format( "{}/test_vertices_weight.hmetis", PARTITION_TEST_PATH );
+  partition_view aig_p_v_w{ aig, ps };
+
+  ps.si_w_on_hyperedges = true;
+  ps.si_w_on_vertices = true;
+  ps.file_name = fmt::format( "{}/test_edge_vertices_weight.hmetis", PARTITION_TEST_PATH );
+  partition_view aig_p_e_v_w{ aig, ps };
 }
