@@ -210,7 +210,7 @@ int main()
     std::cout << "Original aig PI num: " << aig.num_pis() << std::endl;
     std::cout << "Original aig PO num: " << aig.num_pos() << std::endl;
 
-    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, vBoundaries, partition, hypergraph );
+    auto vAigs = aig_p.construct_from_partition( ps.num_blocks, partition, hypergraph );
 
     // Now insert all the aigs back to original ntk and check the equivalence
     for ( auto& aig_part : vAigs )
@@ -224,30 +224,7 @@ int main()
       convert_klut_to_graph<aig_network>( aig_p_t_b, klut_m );
       std::get<0>( aig_part ) = aig_p_t_b;
 
-      // create signals
-      std::vector<aig_network::signal> i_sigs;
-      for ( auto const& i : std::get<1>( aig_part ) )
-      {
-        i_sigs.push_back( aig.make_signal( i ) );
-      }
-      uint32_t counter = 0u;
-      // insert back now
-      color_view c_aig{ aig };
-      assert( count_reachable_dead_nodes( c_aig ) == 0u );
-      insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
-        assert( !c_aig.is_dead( c_aig.get_node( _new ) ) );
-        auto const _old = std::get<2>( aig_part ).at( counter++ );
-        if ( _old == _new )
-        {
-          return true;
-        }
-
-        if ( _old != _new )
-        {
-          aig.substitute_node( aig.get_node( _old ), aig.is_complemented( _old ) ? !_new : _new );
-        }
-        return true;
-      } );
+      aig_p.insert_back( aig_part );
     }
 
     auto aig_clear = cleanup_dangling( aig );
@@ -286,18 +263,6 @@ int main()
                                                                          fmt::format( "{}/{}hypOut", pHyOutS, benchmark ).c_str(),
                                                                          &error );
     assert( status_out == SUCCESS );
-
-    // alternative without file write out, using:
-    // mt_kahypar_partitioned_hypergraph_t partitioned_hg_sep = mt_kahypar_create_partitioned_hypergraph(hypergraph, context, 3, partition.get(), &error);
-
-    // if ( remove( fmt::format( "{}/tmp.hmetis", pHyOutS ).c_str() ) == 0 )
-    //{
-    //   std::cout << "Successfully deleted the tmp file." << std::endl;
-    // }
-    // else
-    //{
-    //   std::cout << "Failed to delete the tmp file." << std::endl;
-    // }
 
     mt_kahypar_free_context( context );
     mt_kahypar_free_hypergraph( hypergraph );

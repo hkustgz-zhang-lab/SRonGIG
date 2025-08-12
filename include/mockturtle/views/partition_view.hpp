@@ -14,6 +14,7 @@
 #include <iostream>
 #include <mockturtle/networks/aig.hpp>
 #include <mockturtle/traits.hpp>
+#include <mockturtle/utils/debugging_utils.hpp>
 #include <mockturtle/utils/network_utils.hpp>
 #include <mockturtle/utils/window_utils.hpp>
 #include <mockturtle/views/color_view.hpp>
@@ -70,7 +71,7 @@ public:
   {
   }
 
-  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, std::map<mt_kahypar_hyperedge_id_t, std::vector<mt_kahypar_hypernode_id_t>> vBoundaries, const std::unique_ptr<mt_kahypar_partition_id_t[]>& partition, const mt_kahypar_hypergraph_t& hypergraph )
+  std::vector<std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>>> construct_from_partition( int nPart, const std::unique_ptr<mt_kahypar_partition_id_t[]>& partition, const mt_kahypar_hypergraph_t& hypergraph )
   {
     auto node_block = convertToMap( partition, mt_kahypar_num_hypernodes( hypergraph ) );
     // create nPart aig_network in parallel
@@ -138,74 +139,6 @@ public:
       }
     } );
 
-    /*
-    For each boundary, we should identify the source and sinks:
-    There's always a SINGLE source and maybe multiple sinks, this is by design of the AIG, so for a group of nodes attached to a single hyperEdge, the one has the lowest level is the SOURCE.
-    */
-    depth_view<aig_network> ntk_dep{ _ntk };
-    for ( auto& edg : vBoundaries )
-    {
-      assert( edg.second.size() != 0 );
-      auto src_index = edg.second[0];
-      auto node_source = _ntk.index_to_node( src_index );
-      auto index = 1;
-      while ( index < edg.second.size() )
-      {
-        auto target_to_compare = edg.second[index];
-        if ( ntk_dep.level( _ntk.index_to_node( target_to_compare ) ) < ntk_dep.level( node_source ) )
-        {
-          node_source = _ntk.index_to_node( target_to_compare );
-        }
-        index++;
-      }
-      // Add SOURCE to the fanout of the block itself belongs to
-      auto b_s = _ntk.node_to_index( node_source );
-      auto& block_id_s = node_block[b_s];
-      auto& ac_pos = node_id_split[block_id_s * 3 + 1];
-      // only single output is needed(?)
-      if ( !check_node_exist( node_id_split[block_id_s * 3 + 1], node_source ) && !_ntk.is_constant( node_source ) && !_ntk.is_pi( node_source ) )
-      {
-        ac_pos.push_back( node_source );
-      }
-
-      // SOURCE now is node_source
-      /*
-      Use fanout iteration method, check:
-      The number of different id block in fanouts of the SOURCE show how many CI should be provided for the according block.
-      */
-      index = 0;
-      while ( index < edg.second.size() )
-      {
-        auto it = node_block.find( edg.second[index] );
-        // if exist and not the source of the hyperEdge
-        if ( it != node_block.end() && edg.second[index] != _ntk.node_to_index( node_source ) )
-        {
-          // if node in fanout has different block id as SOURCE, then add SOURCE to CI of the fanout
-          auto tmp_fo_block = node_block[edg.second[index]];
-          if ( tmp_fo_block != node_block[_ntk.node_to_index( node_source )] )
-          {
-            // check if the block already conatins the CI as node_source
-            auto& ac_pis = node_id_split[tmp_fo_block * 3];
-            if ( check_node_exist( ac_pis, _ntk.index_to_node( node_source ) ) )
-            {
-              index++;
-              continue;
-            }
-            else
-            {
-              ac_pis.push_back( _ntk.index_to_node( node_source ) );
-            }
-          }
-          index++;
-        }
-        else
-        {
-          index++;
-          continue;
-        }
-      }
-    }
-
     auto ori_num_gate = _ntk.num_gates();
     std::cout << "Num of gate in original ntk : " << ori_num_gate << std::endl;
     _ntk.foreach_gate( [&]( auto const& n_and ) {
@@ -244,6 +177,35 @@ public:
     }
     assert( count_all_gate == ori_num_gate );
     return vAigs_win;
+  }
+
+  void insert_back( std::tuple<aig_network, std::vector<node>, std::vector<signal>, std::vector<node>> const& aig_part )
+  {
+    auto aig = _ntk;
+    // create signals
+    std::vector<aig_network::signal> i_sigs;
+    for ( auto const& i : std::get<1>( aig_part ) )
+    {
+      i_sigs.push_back( aig.make_signal( i ) );
+    }
+    uint32_t counter = 0u;
+    // insert back now
+    color_view c_aig{ aig };
+    assert( count_reachable_dead_nodes( c_aig ) == 0u );
+    insert_ntk( aig, i_sigs.begin(), i_sigs.end(), std::get<0>( aig_part ), [&]( aig_network::signal const& _new ) {
+      assert( !c_aig.is_dead( c_aig.get_node( _new ) ) );
+      auto const _old = std::get<2>( aig_part ).at( counter++ );
+      if ( _old == _new )
+      {
+        return true;
+      }
+
+      if ( _old != _new )
+      {
+        aig.substitute_node( aig.get_node( _old ), aig.is_complemented( _old ) ? !_new : _new );
+      }
+      return true;
+    } );
   }
 
 private:
