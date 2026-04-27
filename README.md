@@ -72,6 +72,49 @@ make reader_simple_partition
 ./experiments/reader_simple_partition
 ```
 
+## Binary Interface
+
+Two standalone command-line tools are provided for partitioning and stitching binary AIG files without writing C++ code. They are built as experiment targets (see [experiments/binary_aig_partition.cpp](experiments/binary_aig_partition.cpp) and [experiments/binary_aig_stitch.cpp](experiments/binary_aig_stitch.cpp)).
+
+### Build
+
+```bash
+mkdir build && cd build
+cmake -DMOCKTURTLE_EXPERIMENTS=ON -DCMAKE_BUILD_TYPE=Debug ..
+make binary_aig_partition binary_aig_stitch
+```
+
+### Partition a binary AIG
+
+```bash
+./experiments/binary_aig_partition <input.aig> <num_blocks> <output_dir>
+```
+
+This reads a binary AIG file, partitions it into `<num_blocks>` blocks using mt-KaHyPar, and writes to `<output_dir>`:
+- `partition_N.aig` — the N-th partition as a standalone binary AIG
+- `partition_N_meta.json` — metadata (input/output node indices and complementation) needed for stitching
+
+Example:
+```bash
+./experiments/binary_aig_partition experiments/benchmarks/ctrl.aig 2 /tmp/ctrl_parts
+```
+
+### Stitch partitions back
+
+```bash
+./experiments/binary_aig_stitch <original.aig> <partition_dir> <output.aig>
+```
+
+This reads the **same original AIG** that was partitioned, loads each `partition_N.aig` + `partition_N_meta.json` from `<partition_dir>`, stitches them back into a single AIG, and writes the result to `<output.aig>`. Dangling nodes are removed automatically.
+
+Example:
+```bash
+./experiments/binary_aig_stitch experiments/benchmarks/ctrl.aig /tmp/ctrl_parts /tmp/ctrl_stitched.aig
+```
+
+> [!IMPORTANT]
+> The stitch tool must be given the **same original AIG file** used by the partition tool. The metadata JSON files reference node indices from that original network.
+
 ## Automatic Latex Data Collection
 The experimental framework leverages Mockturtle's robust JSON generation capabilities for data output. We have implemented a Python-based processing pipeline that automatically transforms this collected data into LaTeX-compatible formats (see jupyternotebook [experiments/data_collect/DataCollectionToLatex.ipynb](experiments/data_collect/DataCollectionToLatex.ipynb) for implementation details).
 
