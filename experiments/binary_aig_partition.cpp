@@ -2,7 +2,16 @@
   \file binary_aig_partition.cpp
   \brief Read a binary AIG file, partition it using mt-KaHyPar, and write partition AIGs to disk.
 
-  Usage: ./binary_aig_partition <input.aig> <num_blocks> <output_dir>
+  Usage: ./binary_aig_partition <input.aig> <num_blocks> <output_dir> [options]
+
+  Options:
+    --seed <int>           Random seed (default: 42)
+    --epsilon <float>      Imbalance tolerance (default: 0.03)
+    --objective <str>      Objective: cut, km1, soed (default: km1)
+    --preset <str>         Preset: deterministic, default, quality, highest_quality, large_k (default: deterministic)
+    --vcycles <int>        Number of V-cycles (default: 0)
+    --edge-weight          Enable hyperedge weights (fanout-based)
+    --vertex-weight         Enable vertex weights (uniform 1)
 
   Each partition is saved as:
     - <output_dir>/partition_N.aig        (binary AIG)
@@ -33,17 +42,98 @@
 
 using namespace mockturtle;
 
+mt_kahypar_objective_t parse_objective( std::string const& s )
+{
+  if ( s == "cut" )
+    return CUT;
+  if ( s == "soed" )
+    return SOED;
+  return KM1;
+}
+
+mt_kahypar_preset_type_t parse_preset( std::string const& s )
+{
+  if ( s == "default" )
+    return DEFAULT;
+  if ( s == "quality" )
+    return QUALITY;
+  if ( s == "highest_quality" )
+    return HIGHEST_QUALITY;
+  if ( s == "large_k" )
+    return LARGE_K;
+  return DETERMINISTIC;
+}
+
 int main( int argc, char* argv[] )
 {
-  if ( argc != 4 )
+  if ( argc < 4 )
   {
-    fmt::print( "Usage: {} <input.aig> <num_blocks> <output_dir>\n", argv[0] );
+    fmt::print( "Usage: {} <input.aig> <num_blocks> <output_dir> [options]\n", argv[0] );
+    fmt::print( "Options:\n" );
+    fmt::print( "  --seed <int>           Random seed (default: 42)\n" );
+    fmt::print( "  --epsilon <float>      Imbalance tolerance (default: 0.03)\n" );
+    fmt::print( "  --objective <str>      cut, km1, soed (default: km1)\n" );
+    fmt::print( "  --preset <str>         deterministic, default, quality, highest_quality, large_k (default: deterministic)\n" );
+    fmt::print( "  --vcycles <int>        Number of V-cycles (default: 0)\n" );
+    fmt::print( "  --edge-weight          Enable hyperedge weights\n" );
+    fmt::print( "  --vertex-weight        Enable vertex weights\n" );
     return 1;
   }
 
   std::string input_file = argv[1];
   int num_blocks = std::stoi( argv[2] );
   std::string output_dir = argv[3];
+
+  size_t seed = 42;
+  double epsilon = 0.03;
+  mt_kahypar_objective_t objective = KM1;
+  mt_kahypar_preset_type_t preset = DETERMINISTIC;
+  int vcycles = 0;
+  bool edge_weight = false;
+  bool vertex_weight = false;
+
+  for ( int i = 4; i < argc; i++ )
+  {
+    std::string arg = argv[i];
+    if ( arg == "--seed" && i + 1 < argc )
+    {
+      seed = std::stoull( argv[++i] );
+    }
+    else if ( arg == "--epsilon" && i + 1 < argc )
+    {
+      epsilon = std::stod( argv[++i] );
+    }
+    else if ( arg == "--objective" && i + 1 < argc )
+    {
+      objective = parse_objective( argv[++i] );
+    }
+    else if ( arg == "--preset" && i + 1 < argc )
+    {
+      preset = parse_preset( argv[++i] );
+    }
+    else if ( arg == "--vcycles" && i + 1 < argc )
+    {
+      vcycles = std::stoi( argv[++i] );
+    }
+    else if ( arg == "--edge-weight" )
+    {
+      edge_weight = true;
+    }
+    else if ( arg == "--vertex-weight" )
+    {
+      vertex_weight = true;
+    }
+    else
+    {
+      fmt::print( "[w] Unknown option: {}\n", arg );
+    }
+  }
+
+  fmt::print( "[i] Parameters: seed={}, epsilon={}, objective={}, preset={}, vcycles={}, edge_weight={}, vertex_weight={}\n",
+              seed, epsilon,
+              objective == CUT ? "cut" : ( objective == SOED ? "soed" : "km1" ),
+              preset == DETERMINISTIC ? "deterministic" : ( preset == DEFAULT ? "default" : ( preset == QUALITY ? "quality" : ( preset == HIGHEST_QUALITY ? "highest_quality" : "large_k" ) ) ),
+              vcycles, edge_weight, vertex_weight );
 
   std::filesystem::create_directories( output_dir );
 
@@ -62,6 +152,10 @@ int main( int argc, char* argv[] )
   partition_view_params ps;
   ps.file_name = hmetis_file;
   ps.num_blocks = num_blocks;
+  ps.seed = seed;
+  ps.epsilon = epsilon;
+  ps.si_w_on_hyperedges = edge_weight;
+  ps.si_w_on_vertices = vertex_weight;
 
   partition_view aig_p{ aig, ps };
 
@@ -70,12 +164,18 @@ int main( int argc, char* argv[] )
       std::thread::hardware_concurrency(),
       true );
 
-  mt_kahypar_context_t* context = mt_kahypar_context_from_preset( DETERMINISTIC );
+  mt_kahypar_context_t* context = mt_kahypar_context_from_preset( preset );
   mt_kahypar_set_partitioning_parameters( context,
-                                          num_blocks, 0.03,
-                                          KM1 );
-  mt_kahypar_set_seed( 42 );
+                                          num_blocks, epsilon,
+                                          objective );
+  mt_kahypar_set_seed( seed );
   mt_kahypar_set_context_parameter( context, VERBOSE, "0", &error );
+
+  if ( vcycles > 0 )
+  {
+    mt_kahypar_set_context_parameter( context, NUM_VCYCLES,
+                                      std::to_string( vcycles ).c_str(), &error );
+  }
 
   mt_kahypar_hypergraph_t hypergraph =
       mt_kahypar_read_hypergraph_from_file( hmetis_file.c_str(),
@@ -99,6 +199,17 @@ int main( int argc, char* argv[] )
   mt_kahypar_get_partition( partitioned_hg, partition.get() );
 
   auto vAigs = aig_p.construct_from_partition( num_blocks, partition, hypergraph );
+
+  nlohmann::json partition_info;
+  partition_info["input_file"] = input_file;
+  partition_info["num_blocks"] = num_blocks;
+  partition_info["seed"] = seed;
+  partition_info["epsilon"] = epsilon;
+  partition_info["objective"] = objective == CUT ? "cut" : ( objective == SOED ? "soed" : "km1" );
+  partition_info["preset"] = preset == DETERMINISTIC ? "deterministic" : ( preset == DEFAULT ? "default" : ( preset == QUALITY ? "quality" : ( preset == HIGHEST_QUALITY ? "highest_quality" : "large_k" ) ) );
+  partition_info["vcycles"] = vcycles;
+  partition_info["edge_weight"] = edge_weight;
+  partition_info["vertex_weight"] = vertex_weight;
 
   for ( int i = 0; i < num_blocks; i++ )
   {
@@ -144,9 +255,35 @@ int main( int argc, char* argv[] )
     fmt::print( "[i] Partition {}: {} gates, {} PIs, {} POs -> {}\n",
                 i, sub_aig.num_gates(), sub_aig.num_pis(), sub_aig.num_pos(),
                 part_file );
+
+    partition_info["partitions"].push_back( { { "index", i },
+                                              { "gates", sub_aig.num_gates() },
+                                              { "pis", sub_aig.num_pis() },
+                                              { "pos", sub_aig.num_pos() } } );
+  }
+
+  {
+    std::string info_file = fmt::format( "{}/partition_info.json", output_dir );
+    std::ofstream ofs( info_file );
+    ofs << partition_info.dump( 2 ) << "\n";
+    ofs.close();
   }
 
   std::filesystem::remove( hmetis_file );
+
+  auto block_weights = std::make_unique<mt_kahypar_hypernode_weight_t[]>( num_blocks );
+  mt_kahypar_get_block_weights( partitioned_hg, block_weights.get() );
+  const double imbalance = mt_kahypar_imbalance( partitioned_hg, context );
+  const int km1 = mt_kahypar_km1( partitioned_hg );
+  const int cut = mt_kahypar_cut( partitioned_hg );
+  const int soed = mt_kahypar_soed( partitioned_hg );
+
+  fmt::print( "[i] Partitioning metrics: imbalance={:.4f}, km1={}, cut={}, soed={}\n",
+              imbalance, km1, cut, soed );
+  for ( int i = 0; i < num_blocks; i++ )
+  {
+    fmt::print( "[i]   Block {}: weight={}\n", i, block_weights[i] );
+  }
 
   mt_kahypar_free_context( context );
   mt_kahypar_free_hypergraph( hypergraph );

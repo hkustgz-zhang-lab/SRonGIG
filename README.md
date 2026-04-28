@@ -87,16 +87,51 @@ make binary_aig_partition binary_aig_stitch
 ### Partition a binary AIG
 
 ```bash
-./experiments/binary_aig_partition <input.aig> <num_blocks> <output_dir>
+./experiments/binary_aig_partition <input.aig> <num_blocks> <output_dir> [options]
 ```
 
 This reads a binary AIG file, partitions it into `<num_blocks>` blocks using mt-KaHyPar, and writes to `<output_dir>`:
 - `partition_N.aig` — the N-th partition as a standalone binary AIG
 - `partition_N_meta.json` — metadata (input/output node indices and complementation) needed for stitching
+- `partition_info.json` — summary of parameters and per-partition statistics
 
-Example:
+#### Partitioning options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--seed <int>` | `42` | Random seed for the partitioner |
+| `--epsilon <float>` | `0.03` | Imbalance tolerance (e.g. 0.03 = 3%) |
+| `--objective <str>` | `km1` | Objective function: `cut`, `km1`, or `soed` |
+| `--preset <str>` | `deterministic` | mt-KaHyPar preset: `deterministic`, `default`, `quality`, `highest_quality`, `large_k` |
+| `--vcycles <int>` | `0` | Number of V-cycles for iterative refinement |
+| `--edge-weight` | off | Enable fanout-based hyperedge weights in hMetis file |
+| `--vertex-weight` | off | Enable uniform vertex weights in hMetis file |
+
+> [!NOTE]
+> The `deterministic` preset produces identical results for the same seed and parameters. Use `default` or `quality` to get varied partitions across seeds. A larger `epsilon` allows more unbalanced block sizes, which can yield different cut structures.
+
+#### Examples
+
+Default (deterministic, km1, seed 42):
 ```bash
 ./experiments/binary_aig_partition experiments/benchmarks/ctrl.aig 2 /tmp/ctrl_parts
+```
+
+Different seed and relaxed imbalance:
+```bash
+./experiments/binary_aig_partition experiments/benchmarks/ctrl.aig 2 /tmp/ctrl_parts --seed 123 --epsilon 0.10
+```
+
+Quality preset with SOED objective and edge weights:
+```bash
+./experiments/binary_aig_partition experiments/benchmarks/cavlc.aig 3 /tmp/cavlc_parts --preset quality --objective soed --edge-weight
+```
+
+After partitioning, metrics are printed:
+```
+[i] Partitioning metrics: imbalance=0.0142, km1=63, cut=63, soed=126
+[i]   Block 0: weight=352
+[i]   Block 1: weight=367
 ```
 
 ### Stitch partitions back
