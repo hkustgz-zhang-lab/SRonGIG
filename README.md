@@ -104,6 +104,7 @@ This reads a binary AIG file, partitions it into `<num_blocks>` blocks using mt-
 | `--objective <str>` | `km1` | Objective function: `cut`, `km1`, or `soed` |
 | `--preset <str>` | `deterministic` | mt-KaHyPar preset: `deterministic`, `default`, `quality`, `highest_quality`, `large_k` |
 | `--vcycles <int>` | `0` | Number of V-cycles for iterative refinement |
+| `--threads <int>` | all hw threads | Max number of threads mt-KaHyPar may use |
 | `--edge-weight` | off | Enable fanout-based hyperedge weights in hMetis file |
 | `--vertex-weight` | off | Enable uniform vertex weights in hMetis file |
 

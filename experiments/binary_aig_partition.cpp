@@ -75,6 +75,7 @@ int main( int argc, char* argv[] )
     fmt::print( "  --objective <str>      cut, km1, soed (default: km1)\n" );
     fmt::print( "  --preset <str>         deterministic, default, quality, highest_quality, large_k (default: deterministic)\n" );
     fmt::print( "  --vcycles <int>        Number of V-cycles (default: 0)\n" );
+    fmt::print( "  --threads <int>        Max threads (default: all hardware threads)\n" );
     fmt::print( "  --edge-weight          Enable hyperedge weights\n" );
     fmt::print( "  --vertex-weight        Enable vertex weights\n" );
     return 1;
@@ -89,6 +90,7 @@ int main( int argc, char* argv[] )
   mt_kahypar_objective_t objective = KM1;
   mt_kahypar_preset_type_t preset = DETERMINISTIC;
   int vcycles = 0;
+  size_t num_threads = std::thread::hardware_concurrency();
   bool edge_weight = false;
   bool vertex_weight = false;
 
@@ -115,6 +117,10 @@ int main( int argc, char* argv[] )
     {
       vcycles = std::stoi( argv[++i] );
     }
+    else if ( arg == "--threads" && i + 1 < argc )
+    {
+      num_threads = std::stoull( argv[++i] );
+    }
     else if ( arg == "--edge-weight" )
     {
       edge_weight = true;
@@ -129,11 +135,11 @@ int main( int argc, char* argv[] )
     }
   }
 
-  fmt::print( "[i] Parameters: seed={}, epsilon={}, objective={}, preset={}, vcycles={}, edge_weight={}, vertex_weight={}\n",
+  fmt::print( "[i] Parameters: seed={}, epsilon={}, objective={}, preset={}, vcycles={}, threads={}, edge_weight={}, vertex_weight={}\n",
               seed, epsilon,
               objective == CUT ? "cut" : ( objective == SOED ? "soed" : "km1" ),
               preset == DETERMINISTIC ? "deterministic" : ( preset == DEFAULT ? "default" : ( preset == QUALITY ? "quality" : ( preset == HIGHEST_QUALITY ? "highest_quality" : "large_k" ) ) ),
-              vcycles, edge_weight, vertex_weight );
+              vcycles, num_threads, edge_weight, vertex_weight );
 
   std::filesystem::create_directories( output_dir );
 
@@ -160,9 +166,7 @@ int main( int argc, char* argv[] )
   partition_view aig_p{ aig, ps };
 
   mt_kahypar_error_t error{};
-  mt_kahypar_initialize(
-      std::thread::hardware_concurrency(),
-      true );
+  mt_kahypar_initialize( num_threads, true );
 
   mt_kahypar_context_t* context = mt_kahypar_context_from_preset( preset );
   mt_kahypar_set_partitioning_parameters( context,
