@@ -36,7 +36,7 @@ add_library(MtKaHypar INTERFACE)
 FetchContent_Declare(
 MtKaHyPar EXCLUDE_FROM_ALL
 GIT_REPOSITORY https://github.com/kahypar/mt-kahypar
-GIT_TAG        v1.5.2
+GIT_TAG        v1.6
 SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/MtKaHyPar"
 )
 FetchContent_MakeAvailable(MtKaHyPar)
